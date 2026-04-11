@@ -1,0 +1,38 @@
+topic_research_task:
+  description: >
+    Research {topic} for a LinkedIn post targeting DACH business
+    leaders and tech decision-makers. Find the most interesting
+    angle: a surprising statistic, a contrarian take, or a
+    practical insight that most people miss.
+  expected_output: >
+    Research brief with: main angle, 3 supporting points,
+    one surprising data point, and suggested hook.
+  agent: topic_researcher
+
+writing_task:
+  description: >
+    Write a LinkedIn post about {topic} based on the research.
+    Style: Marius' voice — direct, German, practical.
+    Structure: Hook (1 line) → Problem/Insight (2-3 short paragraphs)
+    → Practical takeaway → Question to drive comments.
+    Max 200 words. No corporate buzzwords.
+  expected_output: >
+    Ready-to-post LinkedIn text in German, under 200 words,
+    with hook, body, and closing question.
+  agent: writer
+  context:
+    - topic_research_task
+
+editing_task:
+  description: >
+    Edit the LinkedIn post about {topic}. Cut any fluff.
+    Sharpen the hook — first line must stop the scroll.
+    Check facts. Add 3-5 relevant hashtags.
+    Ensure it's under 200 words. Format for mobile readability.
+  expected_output: >
+    Final polished LinkedIn post in German, under 200 words,
+    with hashtags. Ready to copy-paste into LinkedIn.
+  agent: editor
+  context:
+    - topic_research_task
+    - writing_task

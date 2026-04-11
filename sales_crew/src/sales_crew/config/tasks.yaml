@@ -1,0 +1,43 @@
+company_research_task:
+  description: >
+    Research {company} thoroughly. Find out what they do, their size,
+    industry, recent news, tech stack, and most importantly their
+    likely pain points and challenges. Look for signals that they
+    might benefit from KI/AI solutions.
+  expected_output: >
+    Company profile with: overview, industry, size, tech signals,
+    identified pain points, and opportunities for KI solutions.
+  agent: company_researcher
+
+pitch_task:
+  description: >
+    Based on the company research, write a personalized cold outreach
+    email to {company}. Reference specific pain points found in the
+    research. Keep it under 150 words. Be direct, no fluff.
+    Write in German with English tech terms where natural.
+    The sender is Marius, a KI consultant who builds AI solutions
+    for Mittelstand companies.
+  expected_output: >
+    A ready-to-send cold email in German, under 150 words,
+    with a compelling subject line.
+  agent: pitch_writer
+  context:
+    - company_research_task
+
+offer_task:
+  description: >
+    Based on the company research and pitch, create a concrete
+    KI solution proposal for {company}. Include:
+    1. Identified problem/opportunity
+    2. Proposed solution (specific KI use case)
+    3. Implementation timeline (weeks)
+    4. Expected ROI or efficiency gain
+    5. Next steps
+    Keep it concise — max 500 words.
+  expected_output: >
+    A structured solution proposal in German with problem,
+    solution, timeline, ROI, and next steps.
+  agent: offer_creator
+  context:
+    - company_research_task
+    - pitch_task

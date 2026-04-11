@@ -21,10 +21,15 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-# Add research_crew to path so we can import it
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "research_crew", "src"))
+# Add crew packages to path
+_base = os.path.join(os.path.dirname(__file__), "..")
+sys.path.insert(0, os.path.join(_base, "research_crew", "src"))
+sys.path.insert(0, os.path.join(_base, "sales_crew", "src"))
+sys.path.insert(0, os.path.join(_base, "content_crew", "src"))
 
 from research_crew.crew import ResearchCrew
+from sales_crew.crew import SalesCrew
+from content_crew.crew import ContentCrew
 
 
 # --- Models ---
@@ -69,7 +74,19 @@ AVAILABLE_CREWS = {
         "description": "Research Team — 3 agents analyze a topic and produce an executive brief",
         "agents": ["Research Lead", "Data Analyst", "Report Writer"],
         "input_fields": ["topic"],
-    }
+    },
+    "sales": {
+        "name": "sales",
+        "description": "Sales Outreach Team — researches a company and creates personalized outreach",
+        "agents": ["Company Researcher", "Pitch Writer", "Offer Creator"],
+        "input_fields": ["company"],
+    },
+    "content": {
+        "name": "content",
+        "description": "Content Team — researches a topic and writes a LinkedIn post",
+        "agents": ["Topic Researcher", "Writer", "Editor"],
+        "input_fields": ["topic"],
+    },
 }
 
 
@@ -89,10 +106,23 @@ def run_crew_in_background(task_id: str, crew_name: str, inputs: dict):
             }
             task.current_step = "1/3 — Research Lead analyzing"
             result = ResearchCrew().crew().kickoff(inputs=crew_inputs)
-            task.result = str(result)
-            task.status = TaskStatus.completed
+        elif crew_name == "sales":
+            crew_inputs = {
+                "company": inputs.get("company", "Unknown Company"),
+            }
+            task.current_step = "1/3 — Company Researcher analyzing"
+            result = SalesCrew().crew().kickoff(inputs=crew_inputs)
+        elif crew_name == "content":
+            crew_inputs = {
+                "topic": inputs.get("topic", "AI Trends"),
+            }
+            task.current_step = "1/3 — Topic Researcher analyzing"
+            result = ContentCrew().crew().kickoff(inputs=crew_inputs)
         else:
             raise ValueError(f"Unknown crew: {crew_name}")
+
+        task.result = str(result)
+        task.status = TaskStatus.completed
 
     except Exception as e:
         task.status = TaskStatus.failed

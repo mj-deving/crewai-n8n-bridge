@@ -6,10 +6,14 @@ FastAPI-Service der CrewAI Agent-Teams als REST-Endpoints exposed. n8n (oder jed
 ┌─ n8n / curl ──────────┐     ┌─ FastAPI (CrewAI Bridge) ──────────────────┐
 │                        │     │                                            │
 │  POST /kickoff ────────┼────►│  Spawnt Crew (3 Agents, sequential)       │
-│                        │     │  Returns { task_id: "abc123" }            │
-│  GET /status ◄─────────┼─────│  { status: "running", step: "2/3" }      │
+│  + callback_url        │     │  Returns { task_id: "abc123" }            │
 │                        │     │                                            │
+│  Option A: Polling     │     │                                            │
+│  GET /status ◄─────────┼─────│  { status: "running", step: "2/3" }      │
 │  GET /result ◄─────────┼─────│  { result: "## Report\n..." }            │
+│                        │     │                                            │
+│  Option B: Callback    │     │                                            │
+│  Webhook ◄─────────────┼─────│  POST callback_url mit Result            │
 └────────────────────────┘     └────────────────────────────────────────────┘
 ```
 
@@ -78,7 +82,7 @@ Swagger UI: http://localhost:8000/docs
 | GET | `/tasks/{id}/status` | Status: queued/running/completed/failed |
 | GET | `/tasks/{id}/result` | Ergebnis (nur wenn completed) |
 
-## Beispiel: Kompletter Workflow
+## Beispiel: Polling-Workflow
 
 ```bash
 # 1. Crew starten
@@ -95,6 +99,29 @@ curl -s http://localhost:8000/tasks/$TASK_ID/status
 curl -s http://localhost:8000/tasks/$TASK_ID/result | jq '.result'
 ```
 
+## Beispiel: Callback-Workflow (kein Polling nötig)
+
+```bash
+# Crew starten mit callback_url — Result wird automatisch gepostet
+curl -s -X POST http://localhost:8000/crews/research/kickoff \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "Voice AI im DACH-Mittelstand",
+    "callback_url": "http://your-n8n:5678/webhook/crewai-callback"
+  }'
+# → {"task_id": "abc123", "status": "queued"}
+# Wenn Crew fertig: POST an callback_url mit vollem Result
+```
+
+## n8n Integration
+
+Zwei Workflow-Templates liegen in `n8n/`:
+
+- `research-crew-workflow.json` — Webhook trigger → CrewAI kickoff → respond
+- `callback-receiver-workflow.json` — Empfängt Crew-Results via Callback
+
+Import: n8n UI → Workflows → Import from File → JSON auswählen
+
 ## Was funktioniert hat
 
 - **OpenRouter + LiteLLM:** Model-String `openrouter/anthropic/claude-sonnet-4` in agents.yaml — LiteLLM routet automatisch
@@ -107,7 +134,7 @@ curl -s http://localhost:8000/tasks/$TASK_ID/result | jq '.result'
 - OpenRouter Model-IDs haben **keinen Datums-Suffix** (`claude-sonnet-4`, nicht `claude-sonnet-4-20250514`)
 - `crewai run` erstellt eigene `.venv` mit `uv` — für FastAPI importieren wir die Crew-Klassen direkt
 - `OPENROUTER_API_KEY` wird von LiteLLM automatisch erkannt
-- Agents ohne `tools: [web_search]` generieren Content aus Training-Wissen — für echte Recherche braucht man Search-Tools
+- Research-Agents haben `ScrapeWebsiteTool` — können URLs scrapen. Für echte Websuche: `SERPER_API_KEY` setzen und `SerperDevTool` hinzufügen
 
 ## Projektstruktur
 
@@ -133,13 +160,18 @@ crewai-n8n-bridge/
 │       │   ├── agents.yaml   ← 3 Content Agents
 │       │   └── tasks.yaml    ← 3 Sequential Tasks
 │       └── crew.py           ← @CrewBase Klasse
+├── n8n/
+│   ├── research-crew-workflow.json    ← n8n Workflow Template
+│   └── callback-receiver-workflow.json ← Callback Empfänger
 └── README.md
 ```
 
 ## Nächste Schritte
 
-- [ ] Webhook Callbacks statt Polling (POST an n8n wenn Crew fertig)
-- [ ] n8n Workflow: Webhook → CrewAI → Email mit Report
-- [ ] Web Search Tools für echte Recherche
+- [x] ~~Webhook Callbacks statt Polling~~
+- [x] ~~n8n Workflow Templates~~
+- [x] ~~Web Search Tools (ScrapeWebsiteTool)~~
+- [ ] SerperDevTool für echte Websuche (braucht SERPER_API_KEY)
 - [ ] Token/Cost Tracking pro Crew-Run
+- [ ] CrewAI Flows mit Quality Gate
 - [ ] Docker Compose (crewai-bridge + n8n)

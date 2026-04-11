@@ -13,11 +13,11 @@ import os
 import sys
 import uuid
 import threading
-import time
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -51,11 +51,13 @@ class TaskState(BaseModel):
     started_at: str
     completed_at: str | None = None
     current_step: str | None = None
+    callback_url: str | None = None
 
 
 class KickoffRequest(BaseModel):
     topic: str | None = None
     company: str | None = None
+    callback_url: str | None = None
 
 
 class KickoffResponse(BaseModel):
@@ -92,11 +94,32 @@ AVAILABLE_CREWS = {
 
 # --- Crew Runner ---
 
+def send_callback(task: TaskState):
+    """POST result to callback_url if configured."""
+    if not task.callback_url:
+        return
+    payload = {
+        "task_id": task.task_id,
+        "crew_name": task.crew_name,
+        "status": task.status.value,
+        "result": task.result,
+        "error": task.error,
+        "inputs": task.inputs,
+        "started_at": task.started_at,
+        "completed_at": task.completed_at,
+    }
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.post(task.callback_url, json=payload)
+            print(f"[Callback] POST {task.callback_url} → {resp.status_code}")
+    except Exception as e:
+        print(f"[Callback] Failed to POST {task.callback_url}: {e}")
+
+
 def run_crew_in_background(task_id: str, crew_name: str, inputs: dict):
     """Run a CrewAI crew in a background thread."""
     task = tasks[task_id]
     task.status = TaskStatus.running
-    task.current_step = "1/3 — Research"
 
     try:
         if crew_name == "research":
@@ -129,6 +152,7 @@ def run_crew_in_background(task_id: str, crew_name: str, inputs: dict):
         task.error = str(e)
 
     task.completed_at = datetime.now(timezone.utc).isoformat()
+    send_callback(task)
 
 
 # --- App ---
@@ -179,7 +203,8 @@ def kickoff_crew(crew_name: str, request: KickoffRequest):
         task_id=task_id,
         crew_name=crew_name,
         status=TaskStatus.queued,
-        inputs=inputs,
+        inputs={k: v for k, v in inputs.items() if k != "callback_url"},
+        callback_url=request.callback_url,
         started_at=datetime.now(timezone.utc).isoformat(),
     )
     tasks[task_id] = task_state

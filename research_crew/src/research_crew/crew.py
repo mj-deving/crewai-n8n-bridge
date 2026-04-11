@@ -1,6 +1,7 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
+from crewai_tools import ScrapeWebsiteTool
 
 
 @CrewBase
@@ -14,14 +15,16 @@ class ResearchCrew():
     def research_lead(self) -> Agent:
         return Agent(
             config=self.agents_config['research_lead'],  # type: ignore[index]
-            verbose=True
+            verbose=True,
+            tools=[ScrapeWebsiteTool()],
         )
 
     @agent
     def data_analyst(self) -> Agent:
         return Agent(
             config=self.agents_config['data_analyst'],  # type: ignore[index]
-            verbose=True
+            verbose=True,
+            tools=[ScrapeWebsiteTool()],
         )
 
     @agent

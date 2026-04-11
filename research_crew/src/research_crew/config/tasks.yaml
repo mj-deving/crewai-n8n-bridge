@@ -1,0 +1,37 @@
+research_task:
+  description: >
+    Research {topic} thoroughly. Find current trends, key players,
+    recent developments. Focus on DACH market where relevant.
+    Identify at least 5 major themes or findings.
+    The current year is {current_year}.
+  expected_output: >
+    Structured findings organized by theme, with key insights
+    and relevant context for each finding.
+  agent: research_lead
+
+data_task:
+  description: >
+    Based on the research findings, find quantitative data:
+    market size, growth rates, adoption percentages, ROI figures
+    related to {topic}. If hard numbers aren't available, note
+    that explicitly and provide reasonable estimates with caveats.
+  expected_output: >
+    Data summary with metrics, percentages, and figures.
+    Each data point should note whether it's verified or estimated.
+  agent: data_analyst
+  context:
+    - research_task
+
+report_task:
+  description: >
+    Write an executive brief synthesizing research and data about {topic}.
+    Structure: Summary (3 sentences), Key Findings (5 bullets),
+    Data Highlights (table), Implications (3 bullets), Sources.
+    Keep it under 1500 words.
+  expected_output: >
+    Markdown executive brief, max 1500 words, with clear sections
+    and actionable insights.
+  agent: report_writer
+  context:
+    - research_task
+    - data_task

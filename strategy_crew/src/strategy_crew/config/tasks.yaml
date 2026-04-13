@@ -1,0 +1,30 @@
+market_analysis_task:
+  description: >
+    Analyze the market landscape for {topic}. Identify key players,
+    market size, growth trends, and competitive dynamics in the
+    DACH region. Focus on actionable insights.
+  expected_output: >
+    Market analysis with key players, market size estimates,
+    growth trends, and competitive positioning map.
+  agent: market_analyst
+
+tech_assessment_task:
+  description: >
+    Assess the technology landscape for {topic}. Evaluate maturity,
+    key platforms/tools, build-vs-buy options, and technical risks.
+    Consider integration complexity and talent availability.
+  expected_output: >
+    Technology assessment with maturity evaluation, recommended
+    tools/platforms, and technical risk analysis.
+  agent: tech_scout
+
+strategy_task:
+  description: >
+    Based on market analysis and tech assessment, develop a
+    strategic recommendation for {topic}. Include: market entry
+    strategy, technology choices, timeline, investment estimate,
+    and key risks with mitigations.
+  expected_output: >
+    Strategic recommendation with clear action items, timeline,
+    investment range, and risk mitigation plan. Max 1000 words.
+  agent: business_strategist

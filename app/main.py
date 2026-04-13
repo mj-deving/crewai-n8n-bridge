@@ -27,10 +27,14 @@ _base = os.path.join(os.path.dirname(__file__), "..")
 sys.path.insert(0, os.path.join(_base, "research_crew", "src"))
 sys.path.insert(0, os.path.join(_base, "sales_crew", "src"))
 sys.path.insert(0, os.path.join(_base, "content_crew", "src"))
+sys.path.insert(0, os.path.join(_base, "strategy_crew", "src"))
+sys.path.insert(0, os.path.join(_base, "flows"))
 
 from research_crew.crew import ResearchCrew
 from sales_crew.crew import SalesCrew
 from content_crew.crew import ContentCrew
+from strategy_crew.crew import StrategyCrew
+from research_flow import ResearchFlow
 
 
 # --- Models ---
@@ -95,6 +99,20 @@ AVAILABLE_CREWS = {
         "agents": ["Topic Researcher", "Writer", "Editor"],
         "input_fields": ["topic"],
     },
+    "strategy": {
+        "name": "strategy",
+        "description": "Strategy Team — hierarchical process with manager coordinating market, tech, and business analysis",
+        "agents": ["Market Analyst", "Tech Scout", "Business Strategist", "(Manager)"],
+        "input_fields": ["topic"],
+        "process": "hierarchical",
+    },
+    "research-flow": {
+        "name": "research-flow",
+        "description": "Research Flow — runs research crew with quality gate (score < 7 triggers retry)",
+        "agents": ["Research Lead", "Data Analyst", "Report Writer", "(Quality Judge)"],
+        "input_fields": ["topic"],
+        "process": "flow",
+    },
 }
 
 
@@ -155,6 +173,23 @@ def run_crew_in_background(task_id: str, crew_name: str, inputs: dict):
             }
             task.current_step = "1/3 — Topic Researcher analyzing"
             result = ContentCrew().crew().kickoff(inputs=crew_inputs)
+        elif crew_name == "strategy":
+            crew_inputs = {
+                "topic": inputs.get("topic", "AI Strategy"),
+            }
+            task.current_step = "1/3 — Manager delegating tasks"
+            result = StrategyCrew().crew().kickoff(inputs=crew_inputs)
+        elif crew_name == "research-flow":
+            task.current_step = "Flow: running research with quality gate"
+            flow = ResearchFlow()
+            flow_result = flow.kickoff(inputs={"topic": inputs.get("topic", "AI Agents")})
+            # Flow result is the final state
+            task.result = flow.state.final_output
+            task.status = TaskStatus.completed
+            task.duration_sec = round(time.time() - start_time, 1)
+            task.completed_at = datetime.now(timezone.utc).isoformat()
+            send_callback(task)
+            return
         else:
             raise ValueError(f"Unknown crew: {crew_name}")
 

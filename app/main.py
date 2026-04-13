@@ -13,6 +13,7 @@ import os
 import sys
 import uuid
 import threading
+import time
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
@@ -52,6 +53,11 @@ class TaskState(BaseModel):
     completed_at: str | None = None
     current_step: str | None = None
     callback_url: str | None = None
+    duration_sec: float | None = None
+    total_tokens: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    successful_requests: int | None = None
 
 
 class KickoffRequest(BaseModel):
@@ -107,6 +113,13 @@ def send_callback(task: TaskState):
         "inputs": task.inputs,
         "started_at": task.started_at,
         "completed_at": task.completed_at,
+        "duration_sec": task.duration_sec,
+        "usage": {
+            "total_tokens": task.total_tokens,
+            "prompt_tokens": task.prompt_tokens,
+            "completion_tokens": task.completion_tokens,
+            "successful_requests": task.successful_requests,
+        },
     }
     try:
         with httpx.Client(timeout=10) as client:
@@ -120,6 +133,7 @@ def run_crew_in_background(task_id: str, crew_name: str, inputs: dict):
     """Run a CrewAI crew in a background thread."""
     task = tasks[task_id]
     task.status = TaskStatus.running
+    start_time = time.time()
 
     try:
         if crew_name == "research":
@@ -147,10 +161,19 @@ def run_crew_in_background(task_id: str, crew_name: str, inputs: dict):
         task.result = str(result)
         task.status = TaskStatus.completed
 
+        # Capture token usage from CrewOutput
+        if hasattr(result, 'token_usage'):
+            usage = result.token_usage
+            task.total_tokens = usage.total_tokens
+            task.prompt_tokens = usage.prompt_tokens
+            task.completion_tokens = usage.completion_tokens
+            task.successful_requests = usage.successful_requests
+
     except Exception as e:
         task.status = TaskStatus.failed
         task.error = str(e)
 
+    task.duration_sec = round(time.time() - start_time, 1)
     task.completed_at = datetime.now(timezone.utc).isoformat()
     send_callback(task)
 
@@ -265,4 +288,11 @@ def get_task_result(task_id: str):
         "inputs": task.inputs,
         "started_at": task.started_at,
         "completed_at": task.completed_at,
+        "duration_sec": task.duration_sec,
+        "usage": {
+            "total_tokens": task.total_tokens,
+            "prompt_tokens": task.prompt_tokens,
+            "completion_tokens": task.completion_tokens,
+            "successful_requests": task.successful_requests,
+        },
     }

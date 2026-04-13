@@ -1,7 +1,7 @@
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
-from crewai_tools import ScrapeWebsiteTool
+from crewai_tools import ScrapeWebsiteTool, SerperDevTool
 
 
 @CrewBase
@@ -16,7 +16,7 @@ class ContentCrew():
         return Agent(
             config=self.agents_config['topic_researcher'],  # type: ignore[index]
             verbose=True,
-            tools=[ScrapeWebsiteTool()],
+            tools=[SerperDevTool(), ScrapeWebsiteTool()],
         )
 
     @agent

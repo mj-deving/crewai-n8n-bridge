@@ -60,6 +60,7 @@ cd research_crew && pip install -e . && cd ..
 
 # Environment
 export OPENROUTER_API_KEY=<your-key>
+export SERPER_API_KEY=<your-serper-key>  # Optional: für echte Websuche (serper.dev)
 ```
 
 ## API starten
@@ -134,7 +135,8 @@ Import: n8n UI → Workflows → Import from File → JSON auswählen
 - OpenRouter Model-IDs haben **keinen Datums-Suffix** (`claude-sonnet-4`, nicht `claude-sonnet-4-20250514`)
 - `crewai run` erstellt eigene `.venv` mit `uv` — für FastAPI importieren wir die Crew-Klassen direkt
 - `OPENROUTER_API_KEY` wird von LiteLLM automatisch erkannt
-- Research-Agents haben `ScrapeWebsiteTool` — können URLs scrapen. Für echte Websuche: `SERPER_API_KEY` setzen und `SerperDevTool` hinzufügen
+- Research-Agents haben `SerperDevTool` (echte Websuche) + `ScrapeWebsiteTool` (URL scrapen)
+- Token/Cost Tracking: Result-Endpoint liefert `usage` (total_tokens, prompt_tokens, completion_tokens) und `duration_sec`
 
 ## Projektstruktur
 
@@ -170,8 +172,7 @@ crewai-n8n-bridge/
 
 - [x] ~~Webhook Callbacks statt Polling~~
 - [x] ~~n8n Workflow Templates~~
-- [x] ~~Web Search Tools (ScrapeWebsiteTool)~~
-- [ ] SerperDevTool für echte Websuche (braucht SERPER_API_KEY)
-- [ ] Token/Cost Tracking pro Crew-Run
+- [x] ~~Web Search Tools (SerperDevTool + ScrapeWebsiteTool)~~
+- [x] ~~Token/Cost Tracking pro Crew-Run~~
 - [ ] CrewAI Flows mit Quality Gate
 - [ ] Docker Compose (crewai-bridge + n8n)

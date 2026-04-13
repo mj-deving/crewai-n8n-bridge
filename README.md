@@ -36,28 +36,33 @@ FastAPI-Service der CrewAI Agent-Teams als REST-Endpoints exposed. n8n (oder jed
 **Agents:** Research Lead → Data Analyst → Report Writer
 **Input:** `{"topic": "KI im deutschen Maschinenbau 2026"}`
 **Output:** Strukturierter Executive Brief (~5KB) mit Summary, Key Findings, Data Table, Implications, Sources
+**Metriken:** ~6.8K Tokens, ~85s, 6 LLM Requests
 
 ### Sales Crew (Sequential)
 **Agents:** Company Researcher → Pitch Writer → Offer Creator
 **Input:** `{"company": "Everlast AI"}`
 **Output:** KI-Lösungsvorschlag auf Deutsch (~2.3KB) mit Pain Points, Lösung, Timeline, ROI
+**Metriken:** ~8K Tokens, ~70s, 6 LLM Requests
 
 ### Content Crew (Sequential)
 **Agents:** Topic Researcher → Writer → Editor
 **Input:** `{"topic": "Warum 94% der KMUs noch keine KI haben"}`
 **Output:** Fertiger LinkedIn-Post auf Deutsch (~1KB) mit Hashtags, copy-paste-ready
+**Metriken:** ~6.8K Tokens, ~85s, 6 LLM Requests
 
 ### Strategy Crew (Hierarchical)
 **Agents:** Manager (auto) → Market Analyst, Tech Scout, Business Strategist
 **Process:** `Process.hierarchical` — Manager-Agent verteilt Tasks dynamisch
 **Input:** `{"topic": "Voice AI für DACH Versicherungen"}`
-**Output:** Strategieempfehlung mit Marktanalyse, Tech-Assessment, Aktionsplan
+**Output:** Strategieempfehlung (~6.5KB) mit Market Entry, Tech-Assessment, Aktionsplan
+**Metriken:** 35.2K Tokens, 130s, 9 LLM Requests (Manager + 3 Workers)
 
 ### Research Flow (Flow mit Quality Gate)
 **Agents:** Research Crew + Quality Judge (LLM-Score)
 **Process:** `Flow` — Research → Score (0-10) → Score < 7? Retry mit Feedback → Deliver
 **Input:** `{"topic": "Agentic AI Frameworks 2026"}`
-**Output:** Qualitätsgeprüfter Research Report (mind. Score 7/10)
+**Output:** Qualitätsgeprüfter Research Report (~3.9KB, mind. Score 7/10)
+**Metriken:** ~15K Tokens, 186s (Research + Quality Check)
 
 ## Setup
 
@@ -195,9 +200,10 @@ npx n8nac list    # Aktive Workflows anzeigen
 - OpenRouter Model-IDs haben **keinen Datums-Suffix** (`claude-sonnet-4`, nicht `claude-sonnet-4-20250514`)
 - `crewai run` erstellt eigene `.venv` mit `uv` — für FastAPI importieren wir die Crew-Klassen direkt
 - `OPENROUTER_API_KEY` wird von LiteLLM automatisch erkannt
-- `Process.hierarchical` braucht `manager_llm` Parameter — nutzt das gleiche OpenRouter-Modell
-- CrewAI Flows verwenden `@start()`, `@listen()`, `@router()` Decorators für deterministische Pipelines
+- `Process.hierarchical` braucht `manager_llm` als `LLM()`-Objekt mit explizitem `max_tokens` — sonst fordert der Manager bis zu 64K Tokens an
+- CrewAI Flows: `@router()` → `@listen("label")` Cycles verursachen Infinite Loops — lineares Flow-Pattern mit `while`-Loop ist robuster
 - `CrewOutput.token_usage` enthält Token-Metriken direkt nach kickoff()
+- Hierarchical Process braucht ~5x mehr Tokens als Sequential (Manager-Overhead)
 
 ## Projektstruktur
 
@@ -218,20 +224,35 @@ crewai-n8n-bridge/
 ├── n8n/
 │   ├── research-crew-workflow.json
 │   └── callback-receiver-workflow.json
+├── workflows/                   ← n8nac TypeScript workflows (pushed to n8n)
+│   └── .../CrewAI Research Bridge.workflow.ts
+│   └── .../CrewAI Callback Receiver.workflow.ts
 ├── Dockerfile
 ├── docker-compose.yml           ← bridge + n8n
+├── n8nac-config.json            ← n8nac workspace config
+├── AGENTS.md                    ← n8nac AI context
 └── README.md
 ```
 
+## Verifizierte Metriken (alle Crews getestet)
+
+| Crew | Process | Tokens | Duration | Requests | Output |
+|------|---------|--------|----------|----------|--------|
+| Research | Sequential | 6.8K | 85s | 6 | 4.7KB Executive Brief |
+| Sales | Sequential | ~8K | ~70s | 6 | 2.3KB Lösungsvorschlag |
+| Content | Sequential | 6.8K | 85s | 6 | 1KB LinkedIn-Post |
+| Strategy | Hierarchical | 35.2K | 130s | 9 | 6.5KB Strategie |
+| Research Flow | Flow | ~15K | 186s | 7+ | 3.9KB Report (scored) |
+
 ## Feature-Status
 
-- [x] CrewAI Crews (Research, Sales, Content)
+- [x] CrewAI Crews (Research, Sales, Content) — alle verifiziert
 - [x] FastAPI async wrapper mit Background Threads
 - [x] Webhook Callbacks (optional callback_url)
-- [x] n8n Workflow Templates
-- [x] SerperDevTool + ScrapeWebsiteTool
+- [x] n8n Workflow Templates (JSON + n8nac TypeScript)
+- [x] n8n E2E via n8nac — Workflows pushed und live
+- [x] SerperDevTool (echte Websuche) + ScrapeWebsiteTool
 - [x] Token/Cost Tracking pro Crew-Run
-- [x] CrewAI Flows mit Quality Gate
-- [x] Hierarchical Process (Strategy Crew)
+- [x] CrewAI Flows mit Quality Gate — verifiziert
+- [x] Hierarchical Process (Strategy Crew) — verifiziert
 - [x] Docker Compose (bridge + n8n)
-- [x] n8nac Setup-Anleitung

@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "activeInstanceId": "instance-3db2ef21",
+  "instances": [
+    {
+      "id": "instance-3db2ef21",
+      "name": "172.31.224.1 · Marius J",
+      "host": "http://172.31.224.1:5678",
+      "syncFolder": "workflows",
+      "projectId": "personal",
+      "projectName": "Personal",
+      "instanceIdentifier": "172_31_224_1:5678_marius _j",
+      "workflowDir": "workflows/172_31_224_1:5678_marius _j/personal",
+      "verification": {
+        "status": "verified",
+        "normalizedHost": "http://172.31.224.1:5678",
+        "userId": "ef4354d8-75df-4047-9d6d-d8972c1eab41",
+        "userName": "Marius J",
+        "userEmail": "mariusclaude@proton.me",
+        "lastCheckedAt": "2026-04-13T08:21:08.476Z"
+      }
+    }
+  ],
+  "host": "http://172.31.224.1:5678",
+  "syncFolder": "workflows",
+  "projectId": "personal",
+  "projectName": "Personal",
+  "instanceIdentifier": "172_31_224_1:5678_marius _j",
+  "workflowDir": "workflows/172_31_224_1:5678_marius _j/personal"
+}

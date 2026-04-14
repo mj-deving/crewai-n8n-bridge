@@ -57,8 +57,8 @@ flowchart LR
     R1["Research Lead\nSerper + Scrape"] --> R2["Data Analyst\nSerper + Scrape"] --> R3["Report Writer\nSerper + Scrape"]
 
     style R1 fill:#6c8cff,color:#0f1117,stroke:none
-    style R2 fill:#a78bfa,color:#0f1117,stroke:none
-    style R3 fill:#4ade80,color:#0f1117,stroke:none
+    style R2 fill:#6c8cff,color:#0f1117,stroke:none
+    style R3 fill:#6c8cff,color:#0f1117,stroke:none
 ```
 
 **Input:** `{"topic": "AI in German manufacturing 2026"}`
@@ -72,8 +72,8 @@ flowchart LR
     S1["Company Researcher"] --> S2["Pitch Writer"] --> S3["Offer Creator"]
 
     style S1 fill:#6c8cff,color:#0f1117,stroke:none
-    style S2 fill:#a78bfa,color:#0f1117,stroke:none
-    style S3 fill:#4ade80,color:#0f1117,stroke:none
+    style S2 fill:#6c8cff,color:#0f1117,stroke:none
+    style S3 fill:#6c8cff,color:#0f1117,stroke:none
 ```
 
 **Input:** `{"company": "Everlast AI"}`
@@ -87,8 +87,8 @@ flowchart LR
     T1["Topic Researcher"] --> T2["Writer"] --> T3["Editor"]
 
     style T1 fill:#6c8cff,color:#0f1117,stroke:none
-    style T2 fill:#a78bfa,color:#0f1117,stroke:none
-    style T3 fill:#4ade80,color:#0f1117,stroke:none
+    style T2 fill:#6c8cff,color:#0f1117,stroke:none
+    style T3 fill:#6c8cff,color:#0f1117,stroke:none
 ```
 
 **Input:** `{"topic": "Why 94% of SMBs still don't use AI"}`

@@ -3,214 +3,40 @@ CrewAI-n8n Bridge — FastAPI async wrapper for CrewAI crews.
 
 Endpoints:
   GET  /                          → API info + available crews
+  GET  /health                    → Health check
+  GET  /crews                     → List all crews (static + dynamic)
+  POST /crews                     → Create a dynamic crew
+  DELETE /crews/{crew_name}       → Delete a dynamic crew
   POST /crews/{crew_name}/kickoff → Start crew, returns task_id
   GET  /tasks/{task_id}/status    → Task status + progress
+  GET  /tasks/{task_id}/stream    → SSE stream of live agent steps
   GET  /tasks/{task_id}/result    → Task result (when completed)
-  GET  /health                    → Health check
 """
 
-import os
-import sys
-import uuid
+import asyncio
+import json
+import queue
 import threading
-import time
+import uuid
 from datetime import datetime, timezone
-from enum import Enum
-from typing import Any
 
-import httpx
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
 
-# Add crew packages to path
-_base = os.path.join(os.path.dirname(__file__), "..")
-sys.path.insert(0, os.path.join(_base, "research_crew", "src"))
-sys.path.insert(0, os.path.join(_base, "sales_crew", "src"))
-sys.path.insert(0, os.path.join(_base, "content_crew", "src"))
-sys.path.insert(0, os.path.join(_base, "strategy_crew", "src"))
-sys.path.insert(0, os.path.join(_base, "flows"))
-
-from research_crew.crew import ResearchCrew
-from sales_crew.crew import SalesCrew
-from content_crew.crew import ContentCrew
-from strategy_crew.crew import StrategyCrew
-from research_flow import ResearchFlow
-
-
-# --- Models ---
-
-class TaskStatus(str, Enum):
-    queued = "queued"
-    running = "running"
-    completed = "completed"
-    failed = "failed"
-
-
-class TaskState(BaseModel):
-    task_id: str
-    crew_name: str
-    status: TaskStatus
-    inputs: dict[str, Any]
-    result: str | None = None
-    error: str | None = None
-    started_at: str
-    completed_at: str | None = None
-    current_step: str | None = None
-    callback_url: str | None = None
-    duration_sec: float | None = None
-    total_tokens: int | None = None
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
-    successful_requests: int | None = None
-
-
-class KickoffRequest(BaseModel):
-    topic: str | None = None
-    company: str | None = None
-    callback_url: str | None = None
-
-
-class KickoffResponse(BaseModel):
-    task_id: str
-    status: TaskStatus
-    crew_name: str
-
-
-# --- State ---
-
-tasks: dict[str, TaskState] = {}
-
-AVAILABLE_CREWS = {
-    "research": {
-        "name": "research",
-        "description": "Research Team — 3 agents analyze a topic and produce an executive brief",
-        "agents": ["Research Lead", "Data Analyst", "Report Writer"],
-        "input_fields": ["topic"],
-    },
-    "sales": {
-        "name": "sales",
-        "description": "Sales Outreach Team — researches a company and creates personalized outreach",
-        "agents": ["Company Researcher", "Pitch Writer", "Offer Creator"],
-        "input_fields": ["company"],
-    },
-    "content": {
-        "name": "content",
-        "description": "Content Team — researches a topic and writes a LinkedIn post",
-        "agents": ["Topic Researcher", "Writer", "Editor"],
-        "input_fields": ["topic"],
-    },
-    "strategy": {
-        "name": "strategy",
-        "description": "Strategy Team — hierarchical process with manager coordinating market, tech, and business analysis",
-        "agents": ["Market Analyst", "Tech Scout", "Business Strategist", "(Manager)"],
-        "input_fields": ["topic"],
-        "process": "hierarchical",
-    },
-    "research-flow": {
-        "name": "research-flow",
-        "description": "Research Flow — runs research crew with quality gate (score < 7 triggers retry)",
-        "agents": ["Research Lead", "Data Analyst", "Report Writer", "(Quality Judge)"],
-        "input_fields": ["topic"],
-        "process": "flow",
-    },
-}
-
-
-# --- Crew Runner ---
-
-def send_callback(task: TaskState):
-    """POST result to callback_url if configured."""
-    if not task.callback_url:
-        return
-    payload = {
-        "task_id": task.task_id,
-        "crew_name": task.crew_name,
-        "status": task.status.value,
-        "result": task.result,
-        "error": task.error,
-        "inputs": task.inputs,
-        "started_at": task.started_at,
-        "completed_at": task.completed_at,
-        "duration_sec": task.duration_sec,
-        "usage": {
-            "total_tokens": task.total_tokens,
-            "prompt_tokens": task.prompt_tokens,
-            "completion_tokens": task.completion_tokens,
-            "successful_requests": task.successful_requests,
-        },
-    }
-    try:
-        with httpx.Client(timeout=10) as client:
-            resp = client.post(task.callback_url, json=payload)
-            print(f"[Callback] POST {task.callback_url} → {resp.status_code}")
-    except Exception as e:
-        print(f"[Callback] Failed to POST {task.callback_url}: {e}")
-
-
-def run_crew_in_background(task_id: str, crew_name: str, inputs: dict):
-    """Run a CrewAI crew in a background thread."""
-    task = tasks[task_id]
-    task.status = TaskStatus.running
-    start_time = time.time()
-
-    try:
-        if crew_name == "research":
-            crew_inputs = {
-                "topic": inputs.get("topic", "AI Agents"),
-                "current_year": str(datetime.now().year),
-            }
-            task.current_step = "1/3 — Research Lead analyzing"
-            result = ResearchCrew().crew().kickoff(inputs=crew_inputs)
-        elif crew_name == "sales":
-            crew_inputs = {
-                "company": inputs.get("company", "Unknown Company"),
-            }
-            task.current_step = "1/3 — Company Researcher analyzing"
-            result = SalesCrew().crew().kickoff(inputs=crew_inputs)
-        elif crew_name == "content":
-            crew_inputs = {
-                "topic": inputs.get("topic", "AI Trends"),
-            }
-            task.current_step = "1/3 — Topic Researcher analyzing"
-            result = ContentCrew().crew().kickoff(inputs=crew_inputs)
-        elif crew_name == "strategy":
-            crew_inputs = {
-                "topic": inputs.get("topic", "AI Strategy"),
-            }
-            task.current_step = "1/3 — Manager delegating tasks"
-            result = StrategyCrew().crew().kickoff(inputs=crew_inputs)
-        elif crew_name == "research-flow":
-            task.current_step = "Flow: running research with quality gate"
-            flow = ResearchFlow()
-            flow_result = flow.kickoff(inputs={"topic": inputs.get("topic", "AI Agents")})
-            # Flow result is the final state
-            task.result = flow.state.final_output
-            task.status = TaskStatus.completed
-            task.duration_sec = round(time.time() - start_time, 1)
-            task.completed_at = datetime.now(timezone.utc).isoformat()
-            send_callback(task)
-            return
-        else:
-            raise ValueError(f"Unknown crew: {crew_name}")
-
-        task.result = str(result)
-        task.status = TaskStatus.completed
-
-        # Capture token usage from CrewOutput
-        if hasattr(result, 'token_usage'):
-            usage = result.token_usage
-            task.total_tokens = usage.total_tokens
-            task.prompt_tokens = usage.prompt_tokens
-            task.completion_tokens = usage.completion_tokens
-            task.successful_requests = usage.successful_requests
-
-    except Exception as e:
-        task.status = TaskStatus.failed
-        task.error = str(e)
-
-    task.duration_sec = round(time.time() - start_time, 1)
-    task.completed_at = datetime.now(timezone.utc).isoformat()
-    send_callback(task)
+from app.models import (
+    CreateCrewRequest,
+    KickoffRequest,
+    KickoffResponse,
+    TaskStatus,
+)
+from app.runner import (
+    AVAILABLE_CREWS,
+    STATIC_CREW_NAMES,
+    dynamic_crews,
+    event_queues,
+    run_crew_in_background,
+    tasks,
+)
 
 
 # --- App ---
@@ -218,7 +44,7 @@ def run_crew_in_background(task_id: str, crew_name: str, inputs: dict):
 app = FastAPI(
     title="CrewAI-n8n Bridge",
     description="FastAPI service wrapping CrewAI agent teams. Trigger multi-agent crews via HTTP.",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
@@ -226,7 +52,7 @@ app = FastAPI(
 def root():
     return {
         "service": "CrewAI-n8n Bridge",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "available_crews": list(AVAILABLE_CREWS.keys()),
         "docs": "/docs",
     }
@@ -246,6 +72,98 @@ def list_crews():
     return {"crews": list(AVAILABLE_CREWS.values())}
 
 
+# --- Dynamic Crew Management ---
+
+@app.post("/crews", status_code=201)
+def create_crew(request: CreateCrewRequest):
+    """Create a dynamic crew from agent/task definitions."""
+    name = request.name
+
+    # ISC-12: Cannot overwrite static crews
+    if name in STATIC_CREW_NAMES:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot overwrite built-in crew '{name}'.",
+        )
+
+    # ISC-4: Minimum 1 agent and 1 task
+    if len(request.agents) < 1:
+        raise HTTPException(status_code=422, detail="At least 1 agent required.")
+    if len(request.tasks) < 1:
+        raise HTTPException(status_code=422, detail="At least 1 task required.")
+
+    # ISC-5: Validate agent references in tasks
+    agent_roles = {a.role for a in request.agents}
+    for i, task_def in enumerate(request.tasks):
+        if task_def.agent not in agent_roles:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Task {i} references agent '{task_def.agent}' which doesn't exist. "
+                       f"Available: {sorted(agent_roles)}",
+            )
+
+    # ISC-6: Validate context references
+    for i, task_def in enumerate(request.tasks):
+        for ctx_ref in task_def.context:
+            if not ctx_ref.startswith("task_"):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Task {i} context '{ctx_ref}' invalid. Use 'task_0', 'task_1', etc.",
+                )
+            try:
+                ref_idx = int(ctx_ref.split("_")[1])
+            except (IndexError, ValueError):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Task {i} context '{ctx_ref}' invalid format.",
+                )
+            if ref_idx >= i:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Task {i} context '{ctx_ref}' must reference an earlier task (index < {i}).",
+                )
+
+    # Validate process
+    if request.process not in ("sequential", "hierarchical"):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Process must be 'sequential' or 'hierarchical', got '{request.process}'.",
+        )
+
+    # Register
+    crew_info = {
+        "name": name,
+        "description": f"Dynamic crew: {len(request.agents)} agents, {request.process} process",
+        "agents": [a.role for a in request.agents],
+        "input_fields": [],
+        "process": request.process,
+        "dynamic": True,
+    }
+    AVAILABLE_CREWS[name] = crew_info
+    dynamic_crews[name] = {"config": request}
+
+    return {
+        "message": f"Crew '{name}' created",
+        "crew": crew_info,
+        "kickoff_url": f"/crews/{name}/kickoff",
+    }
+
+
+@app.delete("/crews/{crew_name}")
+def delete_crew(crew_name: str):
+    """Delete a dynamic crew. Static crews cannot be deleted."""
+    if crew_name in STATIC_CREW_NAMES:
+        raise HTTPException(status_code=403, detail=f"Cannot delete built-in crew '{crew_name}'.")
+    if crew_name not in dynamic_crews:
+        raise HTTPException(status_code=404, detail=f"Dynamic crew '{crew_name}' not found.")
+
+    del dynamic_crews[crew_name]
+    del AVAILABLE_CREWS[crew_name]
+    return {"message": f"Crew '{crew_name}' deleted"}
+
+
+# --- Kickoff ---
+
 @app.post("/crews/{crew_name}/kickoff", response_model=KickoffResponse)
 def kickoff_crew(crew_name: str, request: KickoffRequest):
     if crew_name not in AVAILABLE_CREWS:
@@ -257,6 +175,8 @@ def kickoff_crew(crew_name: str, request: KickoffRequest):
     task_id = str(uuid.uuid4())[:8]
     inputs = request.model_dump(exclude_none=True)
 
+    from app.models import TaskState
+
     task_state = TaskState(
         task_id=task_id,
         crew_name=crew_name,
@@ -266,6 +186,7 @@ def kickoff_crew(crew_name: str, request: KickoffRequest):
         started_at=datetime.now(timezone.utc).isoformat(),
     )
     tasks[task_id] = task_state
+    event_queues[task_id] = queue.Queue()
 
     thread = threading.Thread(
         target=run_crew_in_background,
@@ -281,6 +202,8 @@ def kickoff_crew(crew_name: str, request: KickoffRequest):
     )
 
 
+# --- Task Endpoints ---
+
 @app.get("/tasks/{task_id}/status")
 def get_task_status(task_id: str):
     if task_id not in tasks:
@@ -295,6 +218,52 @@ def get_task_status(task_id: str):
         "started_at": task.started_at,
         "completed_at": task.completed_at,
     }
+
+
+@app.get("/tasks/{task_id}/stream")
+async def stream_task(task_id: str):
+    """SSE stream of live agent steps for a running task."""
+    if task_id not in tasks:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+
+    q = event_queues.get(task_id)
+    if not q:
+        raise HTTPException(status_code=404, detail=f"No event stream for task '{task_id}'")
+
+    task = tasks[task_id]
+    if task.status in (TaskStatus.completed, TaskStatus.failed):
+        raise HTTPException(
+            status_code=410,
+            detail=f"Task already {task.status.value}. Use /tasks/{task_id}/result instead.",
+        )
+
+    async def event_generator():
+        while True:
+            try:
+                event = await asyncio.to_thread(q.get, timeout=1.0)
+            except Exception:
+                if tasks[task_id].status in (TaskStatus.completed, TaskStatus.failed):
+                    while not q.empty():
+                        try:
+                            event = q.get_nowait()
+                            yield {
+                                "event": event["event"],
+                                "data": json.dumps(event["data"]),
+                            }
+                        except queue.Empty:
+                            break
+                    return
+                continue
+
+            yield {
+                "event": event["event"],
+                "data": json.dumps(event["data"]),
+            }
+
+            if event["event"] in ("task_complete", "error"):
+                return
+
+    return EventSourceResponse(event_generator())
 
 
 @app.get("/tasks/{task_id}/result")

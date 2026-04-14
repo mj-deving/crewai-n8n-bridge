@@ -36,12 +36,12 @@ flowchart LR
     G -->|"GET /stream"| A
     B -->|"POST callback_url"| A
 
-    style B fill:#6c8cff,color:#0f1117,stroke:none
-    style C fill:#a78bfa,color:#0f1117,stroke:none
-    style D fill:#22d3ee,color:#0f1117,stroke:none
-    style E fill:#22d3ee,color:#0f1117,stroke:none
-    style F fill:#22d3ee,color:#0f1117,stroke:none
-    style G fill:#4ade80,color:#0f1117,stroke:none
+    style B fill:#e8eaf6,color:#0f1117,stroke:none
+    style C fill:#fff3e0,color:#0f1117,stroke:none
+    style D fill:#e1f5fe,color:#0f1117,stroke:none
+    style E fill:#e1f5fe,color:#0f1117,stroke:none
+    style F fill:#e1f5fe,color:#0f1117,stroke:none
+    style G fill:#e8f5e9,color:#0f1117,stroke:none
 ```
 
 Three ways to get results: **poll** (`GET /status` → `GET /result`), **stream** (`GET /stream` for SSE events), or **callback** (webhook POST on completion).
@@ -56,9 +56,9 @@ Three ways to get results: **poll** (`GET /status` → `GET /result`), **stream*
 flowchart LR
     R1["Research Lead\nSerper + Scrape"] --> R2["Data Analyst\nSerper + Scrape"] --> R3["Report Writer\nSerper + Scrape"]
 
-    style R1 fill:#6c8cff,color:#0f1117,stroke:none
-    style R2 fill:#6c8cff,color:#0f1117,stroke:none
-    style R3 fill:#6c8cff,color:#0f1117,stroke:none
+    style R1 fill:#e1f5fe,color:#0f1117,stroke:none
+    style R2 fill:#e1f5fe,color:#0f1117,stroke:none
+    style R3 fill:#e1f5fe,color:#0f1117,stroke:none
 ```
 
 **Input:** `{"topic": "AI in German manufacturing 2026"}`
@@ -71,9 +71,9 @@ flowchart LR
 flowchart LR
     S1["Company Researcher"] --> S2["Pitch Writer"] --> S3["Offer Creator"]
 
-    style S1 fill:#6c8cff,color:#0f1117,stroke:none
-    style S2 fill:#6c8cff,color:#0f1117,stroke:none
-    style S3 fill:#6c8cff,color:#0f1117,stroke:none
+    style S1 fill:#e1f5fe,color:#0f1117,stroke:none
+    style S2 fill:#e1f5fe,color:#0f1117,stroke:none
+    style S3 fill:#e1f5fe,color:#0f1117,stroke:none
 ```
 
 **Input:** `{"company": "Everlast AI"}`
@@ -86,9 +86,9 @@ flowchart LR
 flowchart LR
     T1["Topic Researcher"] --> T2["Writer"] --> T3["Editor"]
 
-    style T1 fill:#6c8cff,color:#0f1117,stroke:none
-    style T2 fill:#6c8cff,color:#0f1117,stroke:none
-    style T3 fill:#6c8cff,color:#0f1117,stroke:none
+    style T1 fill:#e1f5fe,color:#0f1117,stroke:none
+    style T2 fill:#e1f5fe,color:#0f1117,stroke:none
+    style T3 fill:#e1f5fe,color:#0f1117,stroke:none
 ```
 
 **Input:** `{"topic": "Why 94% of SMBs still don't use AI"}`
@@ -104,10 +104,10 @@ flowchart TD
     M --> BS["Business Strategist"]
     MA & TS & BS --> M
 
-    style M fill:#f97316,color:#0f1117,stroke:none
-    style MA fill:#6c8cff,color:#0f1117,stroke:none
-    style TS fill:#6c8cff,color:#0f1117,stroke:none
-    style BS fill:#6c8cff,color:#0f1117,stroke:none
+    style M fill:#fff3e0,color:#0f1117,stroke:none
+    style MA fill:#e1f5fe,color:#0f1117,stroke:none
+    style TS fill:#e1f5fe,color:#0f1117,stroke:none
+    style BS fill:#e1f5fe,color:#0f1117,stroke:none
 ```
 
 **Process:** `Process.hierarchical` — manager agent distributes tasks dynamically
@@ -123,9 +123,9 @@ flowchart LR
     F2 -->|"≥ 7 — pass"| F3["Deliver"]
     F2 -->|"< 7 + feedback"| F1
 
-    style F1 fill:#6c8cff,color:#0f1117,stroke:none
-    style F2 fill:#fbbf24,color:#0f1117,stroke:none
-    style F3 fill:#4ade80,color:#0f1117,stroke:none
+    style F1 fill:#e1f5fe,color:#0f1117,stroke:none
+    style F2 fill:#fce4ec,color:#0f1117,stroke:none
+    style F3 fill:#c8e6c9,color:#0f1117,stroke:none
 ```
 
 **Input:** `{"topic": "Agentic AI Frameworks 2026"}`

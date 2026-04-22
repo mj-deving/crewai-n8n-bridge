@@ -6,6 +6,8 @@
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](#setup)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](#docker-compose)
 
+![CrewAI](https://img.shields.io/badge/-CrewAI-FF6B35?style=flat-square) ![FastAPI](https://img.shields.io/badge/-FastAPI-009688?style=flat-square) ![Docker](https://img.shields.io/badge/-Docker-2496ED?style=flat-square) ![Python](https://img.shields.io/badge/-Python-3776AB?style=flat-square)
+
 **FastAPI service that exposes CrewAI multi-agent crews as REST endpoints.** 5 built-in crews plus dynamic crew creation at runtime — sequential, hierarchical, and flow-based processes. SSE streaming for live agent progress, webhook callbacks, and full token tracking. n8n or any HTTP client can trigger multi-agent reasoning via API. Crews average 6.8K-35K tokens, 70-186s runtime, $0.02-0.15 per run via OpenRouter.
 
 ## Table of Contents
